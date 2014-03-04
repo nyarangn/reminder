@@ -148,6 +148,7 @@ void Reminder::ConstructEmailBody( std::string& messageBody, bool_t& readyToBeSe
     
     for (Table_t::iterator location =  reminderTable.begin(); location != reminderTable.end(); location++ )
     {   
+    	/// todo Pull this section out into its own function (TokenizeDueDate())
         std::string itemDate = location->second;
         std::string itemName = location->first;
         std::string delimiter = "/";

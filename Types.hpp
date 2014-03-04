@@ -24,8 +24,8 @@ typedef unsigned short      uint16_t;
 // typedef signed long long    int64_t;
 // typedef unsigned long long  uint64_t;
 
-typedef float                float32_t ;
-typedef double               float64_t;
+typedef float               float32_t ;
+typedef double              float64_t;
 typedef unsigned char       bool_t;
 typedef unsigned char       bool8_t;
 typedef unsigned long       bool32_t;

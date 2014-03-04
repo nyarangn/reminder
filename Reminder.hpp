@@ -39,7 +39,7 @@ class Reminder
         struct tm* today;
         Table_t reminderTable;
         MailObject_t mailObject;
-        //This needs to be part of user input
+        /// todo Make the head start a part of user input
         static const int16_t NOTIFICATION_HEAD_START = 5;
         static const int16_t DAYS_IN_A_MONTH = 30;
         void GetDate( int16_t& currentMonth, int16_t& currentDay, std::string& longDate );

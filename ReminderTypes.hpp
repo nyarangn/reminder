@@ -16,6 +16,7 @@
 #include "quickmail.h"
 #include "Types.hpp"
 
+/// todo Need to remove this. Doubt it's being used anywhere
 #define MESSAGE_BODY_SIZE 2048
 
 typedef quickmail MailObject_t;

@@ -1,0 +1,5 @@
+car loan, 40/15,
+electric bill, 40/06,
+water bill, 00/06,
+cable bill, 04/20,
+

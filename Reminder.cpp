@@ -216,12 +216,13 @@ void Reminder::SendEmail( const Message& message )
     quickmail_add_header( mailObject, cstrSubject );
     
     ConstructEmailBody( messageBody, readyToBeSent );
+    std::cout << "message = \n" << messageBody << std::endl;
     quickmail_set_body( mailObject, messageBody.c_str() );
 
     // Send the email
     if ( readyToBeSent == 1 )
     {
-        quickmail_send( mailObject, cstrSmtpServer, message.smtpPort, cstrUsername, cstrPassword );
+        //quickmail_send( mailObject, cstrSmtpServer, message.smtpPort, cstrUsername, cstrPassword );
     }
 }
                                                                       

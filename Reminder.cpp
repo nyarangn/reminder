@@ -7,6 +7,7 @@
 ///
 /// @par Copyright (c) 2014 George Nyarangi. All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
+
 #include <iostream>
 #include <algorithm>
 #include <fstream>
@@ -19,6 +20,10 @@
 #include "Reminder.hpp"
 #include "quickmail.h"
 #include "Types.hpp"
+
+#define DEBUG 0
+// Define notation for "every month"
+const std::string Reminder::EVERY_MONTH = "00";
 
 /////////////////////////////////////////////////////////////////////////////
 /// Reminder constructor
@@ -55,17 +60,16 @@ Reminder::~Reminder()
 ///
 /// @retval     REMINDER_STATUS_PASS    
 ///             REMINDER_STATUS_FAIL
-///
-/// @test        Reminder_ReadFile.cpp
 /////////////////////////////////////////////////////////////////////////////
 ReminderStatus Reminder::ReadFile( const std::string& fileName )
 {
+    /// todo Refactor ReadFile() to utilize a CSV reader library
+    ///      Underscores can be used for now
     std::string line;
     std::string key;
     std::string value;
     ReminderStatus readFileStatus = REMINDER_STATUS_FAIL;
 
-    /// @future Refactor ReadFile() to utilize a CSV reader library
     std::ifstream myFile;
     myFile.open( fileName, std::ifstream::in );
 
@@ -99,22 +103,11 @@ ReminderStatus Reminder::ReadFile( const std::string& fileName )
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/// Method for adding an email recepient to the "to" field
-///
-/// @param[in]  additionalRecepient  Recepient to be addedd
-/////////////////////////////////////////////////////////////////////////////
-void Reminder::AddRecepient( std::string additionalRecepient )
-{
-    const char* cstrAdditionalRecepient = additionalRecepient.c_str();
-    quickmail_add_to ( mailObject, cstrAdditionalRecepient );
-}  
-
-/////////////////////////////////////////////////////////////////////////////
 /// Method for getting date metadata
 ///
-///param[in, out]  currentMonth  The current month
-///param[in, out]  currentDay    The current day
-///param[in, out]  longDate      Long date (Www Mmm dd hh:mm:ss yyyy)
+///param[out]  currentMonth  The current month
+///param[out]  currentDay    The current day
+///param[out]  longDate      Long date (Www Mmm dd hh:mm:ss yyyy)
 /////////////////////////////////////////////////////////////////////////////
 void Reminder::GetDate( int16_t& currentMonth, int16_t& currentDay, std::string& longDate )
 {
@@ -124,117 +117,170 @@ void Reminder::GetDate( int16_t& currentMonth, int16_t& currentDay, std::string&
     currentMonth = today->tm_mon + 1;
     currentDay = today->tm_mday;
     longDate = asctime ( today );
-    //strcpy( *longDate, asctime ( today ));
 }
 
 /////////////////////////////////////////////////////////////////////////////
 /// Method for constructing the email body
 ///
-/// @param[in]  additionalRecepient  Recepient to be addedd
+/// @param[in]  messageBody     Message to be sent
+///
+/// @param[out] isReadyToBeSent Flag to indicate message status
 /////////////////////////////////////////////////////////////////////////////
-void Reminder::ConstructEmailBody( std::string& messageBody, bool_t& readyToBeSent)
+void Reminder::ConstructEmailBody( std::string& messageBody, bool_t& isReadyToBeSent)
 {   
     const char* greeting = "";
     int16_t currentMonth = 0;
     int16_t currentDay = 0;
     std::string longDate = "";
+    
     GetDate( currentMonth, currentDay, longDate );
-
+    
+    /// @todo Need to send smarter messages
     messageBody.append( "\n" ); 
     messageBody.append( longDate );
     messageBody.append( "-------------------------------------\n" );
     messageBody.append( "Hi:\n\n" );
-    messageBody.append( "The following items are due soon:\n\n" );
-    
-    for (Table_t::iterator location =  reminderTable.begin(); location != reminderTable.end(); location++ )
+    messageBody.append( "Here's what's coming up soon:\n\n" );
+
+    for (Table_t::iterator element =  reminderTable.begin(); element != reminderTable.end(); element++ )
     {   
-    	/// todo Pull this section out into its own function (TokenizeDueDate())
-        std::string itemDate = location->second;
-        std::string itemName = location->first;
-        std::string delimiter = "/";
-        size_t delimiterPosition = itemDate.find(delimiter);
-        std::string dueMonth = itemDate.substr( 0, delimiterPosition );
-        std::string dueDay = itemDate.substr( delimiterPosition + 1, std::string::npos );
-
-          //std::cout << " here2 -->"  << DAYS_IN_A_MONTH + atoi( dueDay.c_str() ) << std::endl;
-        if ( currentDay == atoi( dueDay.c_str() ) - NOTIFICATION_HEAD_START && dueMonth.compare( "00" ) == 0 || 
-             ( ( atoi(dueDay.c_str()) - NOTIFICATION_HEAD_START < 0 ) && 
-               ( currentDay == DAYS_IN_A_MONTH + atoi(dueDay.c_str()) - NOTIFICATION_HEAD_START ) ) || 
-              // Check is b
-             ( currentMonth == atoi( dueMonth.c_str() )  && currentDay == atoi( dueDay.c_str() ) - NOTIFICATION_HEAD_START ) )
+        std::string date = "";
+        std::string itemName = element->first;
+        
+        if (IsElementDue( element, date ) == true )
         {
-            // Bill is due this month and notification can be done this month
-            if ( dueMonth.compare( "00" ) == 0 &&  atoi(dueDay.c_str()) - NOTIFICATION_HEAD_START > 0)
-            {
-                itemDate = std::to_string( currentMonth ) + "/" + dueDay;
-                messageBody.append( itemName + " is due on " +  itemDate  );
-                readyToBeSent = 1;
-            }
-            // Bill is due early next month and notification has to be done late this month
-            else if ( dueMonth.compare( "00" ) == 0 && atoi(dueDay.c_str()) - NOTIFICATION_HEAD_START < 0 ) 
-            {
-                itemDate = std::to_string( currentMonth + 1 ) + "/" + dueDay;
-                messageBody.append( itemName + " is due on " +  itemDate  );
-                readyToBeSent = 1;
-            }
-            // Bill month has been specified
-            else
-            {
-               messageBody.append( itemName + " is due on " +  itemDate  );
-               readyToBeSent = 1;
-            }
-
-            messageBody.append("\n");
+            isReadyToBeSent = true;
+            messageBody.append( '-' + itemName + ", " + date  );
+            messageBody.append( "\n" );
+#if DEBUG            
+            std::cout << "\n-->IsElementDue = true\n" << std::endl;
+#endif            
         }
 	}
-    
-    messageBody.append( "\n" );
-    messageBody.append( "Adios,\n" );
+	
+    messageBody.append( "\nAdios,\n" );
     messageBody.append( "ReminderBot" );
 }
 
 /////////////////////////////////////////////////////////////////////////////
 /// Method for sending a notification email
 ///
-/// @param[in]  message    Message object containing email details 
+/// @param[in]  emailMetadata    Object containing email metadata 
 /////////////////////////////////////////////////////////////////////////////
-void Reminder::SendEmail( const Message& message )
+void Reminder::SendEmail( const EmailMetadata& emailMetadata )
 {
-    bool_t readyToBeSent = 0;
+    bool_t isReadyToBeSent = false;
     std::string messageBody;
-    const char* cstrRecepientEmail = message.recepientEmail.c_str();
-    const char* cstrSenderEmail = message.senderEmail.c_str();
-    const char* cstrSubject = message.subject.c_str();
-    const char* cstrUsername = message.senderEmail.c_str();
-    const char* cstrPassword = message.senderPassword.c_str();
-    const char* cstrSmtpServer = message.smtpServer.c_str();    
+    const char* cstrRecepientEmail = emailMetadata.recepientEmail.c_str();
+    /// todo Add capability to send email to multiple recepients. Maybe store emails in a 
+    ///      linked list?
+    const char* cstrCcRecepientEmail = emailMetadata.ccRecepientEmail.c_str();
+    const char* cstrSenderEmail = emailMetadata.senderEmail.c_str();
+    const char* cstrSubject = emailMetadata.subject.c_str();
+    const char* cstrUsername = emailMetadata.senderEmail.c_str();
+    const char* cstrPassword = emailMetadata.senderPassword.c_str();
+    const char* cstrSmtpServer = emailMetadata.smtpServer.c_str();    
     
     quickmail_initialize();
     mailObject = quickmail_create( cstrSenderEmail, cstrSubject );
     quickmail_add_to( mailObject, cstrRecepientEmail );
+    quickmail_add_cc( mailObject, cstrCcRecepientEmail );
     quickmail_set_from( mailObject, cstrSenderEmail );
     quickmail_set_subject( mailObject, cstrSubject );
     quickmail_add_header( mailObject, cstrSubject );
     
-    ConstructEmailBody( messageBody, readyToBeSent );
+    ConstructEmailBody( messageBody, isReadyToBeSent );
+#if DEBUG
     std::cout << "message = \n" << messageBody << std::endl;
-    quickmail_set_body( mailObject, messageBody.c_str() );
+    std::cout << "\n-->isReadyToBeSent = " << isReadyToBeSent << "\n"<< std::endl;    
+#endif
 
+    quickmail_set_body( mailObject, messageBody.c_str() );
+        
     // Send the email
-    if ( readyToBeSent == 1 )
+    if ( isReadyToBeSent == true )
     {
-        //quickmail_send( mailObject, cstrSmtpServer, message.smtpPort, cstrUsername, cstrPassword );
+        quickmail_send( mailObject, cstrSmtpServer, emailMetadata.smtpPort, cstrUsername, cstrPassword );
     }
-    //test
 }
-                                                                      
+
+/////////////////////////////////////////////////////////////////////////////
+/// Method for tokenizing an element's/item's date
+///
+/// @param[in]   element    Iterator pointing to the element whose date details
+///                         are needed
+///
+/// @param[out]  dueDay     Day of the month when element is due 
+/// @param[out]  dueMonth   Month of the year when the element is due 
+/////////////////////////////////////////////////////////////////////////////
+void Reminder::TokenizeDate( std::string& dueMonth, std::string& dueDay, Table_t::iterator& element )
+{
+    std::string itemDate = element->second;
+    std::string delimiter = "/";
+    size_t delimiterPosition = itemDate.find(delimiter);
+    dueMonth = itemDate.substr( 0, delimiterPosition );
+    dueDay = itemDate.substr( delimiterPosition + 1, std::string::npos );
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/// Validate whether an element's notification/reminder is due
+///
+/// @param[in]   element    Iterator pointing to the element whose date details
+///                         are needed
+///
+/// @param[out]  month      Month of the year when the element is due
+/////////////////////////////////////////////////////////////////////////////    
+bool_t Reminder::IsElementDue( Table_t::iterator& element, std::string& date )
+{
+    bool_t isElementDue = false;
+
+    std::string dueMonth;
+    std::string dueDay;
+    
+    TokenizeDate( dueMonth, dueDay, element );
+    
+    int16_t currentMonth = 0;
+    int16_t currentDay = 0;
+    std::string longDate = "";
+    
+    GetDate( currentMonth, currentDay, longDate );
+#if DEBUG    
+    currentDay = 17;
+#endif
+    
+    // Due this month and notification can happen this month
+    if ( atoi(dueDay.c_str()) - NOTIFICATION_HEAD_START > 0 && currentDay == atoi( dueDay.c_str() ) - NOTIFICATION_HEAD_START )
+    {
+        // Due today because day and month match or it's due every month on this date
+        if ( currentMonth == atoi( dueMonth.c_str() ) || dueMonth.compare( EVERY_MONTH ) == 0 )
+        {
+            isElementDue = true;
+            date = std::to_string( currentMonth ) + "/" + dueDay; 
+        }
+    }
+    // Due early next month and notification has to happen late this month
+    else
+    {
+        if ( currentDay == DAYS_IN_A_MONTH + atoi(dueDay.c_str()) - NOTIFICATION_HEAD_START )
+        {
+            if ( currentMonth + 1 == atoi( dueMonth.c_str() ) || dueMonth.compare( EVERY_MONTH ) == 0 )
+            {          
+                isElementDue = true;
+                date = std::to_string( currentMonth +1 ) + "/" + dueDay; 
+            }
+        }
+    }
+       
+    return isElementDue;
+}
+                                                            
 /////////////////////////////////////////////////////////////////////////////
 /// Method for dumping data from the tables
 /////////////////////////////////////////////////////////////////////////////
 void Reminder::DumpTable( void )
 {
-    for ( Table_t::iterator location =  reminderTable.begin(); location != reminderTable.end(); location++ )
+    for ( Table_t::iterator element =  reminderTable.begin(); element != reminderTable.end(); element++ )
     {
-        std::cout << "reminderTable[" << location->first << "] = " << location->second << std::endl;
+        std::cout << "reminderTable[" << element->first << "] = " << element->second << std::endl;
     }
 }

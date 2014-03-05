@@ -16,9 +16,6 @@
 #include "quickmail.h"
 #include "Types.hpp"
 
-/// todo Need to remove this
-#define MESSAGE_BODY_SIZE 2048
-
 typedef quickmail MailObject_t;
 typedef std::map<std::string, std::string> Table_t;
 
@@ -28,16 +25,15 @@ enum ReminderStatus
     REMINDER_STATUS_FAIL
 };
 
-struct Message
+struct EmailMetadata
 {
     std::string recepientEmail;
+    std::string ccRecepientEmail;
     std::string senderEmail;
     std::string senderPassword;
     std::string subject;
-    std::string body;
     std::string smtpServer;
     uint16_t smtpPort;
 };
-
 
 #endif

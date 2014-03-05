@@ -225,6 +225,7 @@ void Reminder::SendEmail( const Message& message )
     {
         //quickmail_send( mailObject, cstrSmtpServer, message.smtpPort, cstrUsername, cstrPassword );
     }
+    //test
 }
                                                                       
 /////////////////////////////////////////////////////////////////////////////

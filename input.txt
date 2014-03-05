@@ -1,5 +1,0 @@
-car loan, 03/09,
-electric bill, 00/06,
-water bill, 00/09,
-cable bill, 04/20,
-
